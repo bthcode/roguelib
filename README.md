@@ -1,0 +1,2 @@
+# roguelib
+Python Roguelike Library
