@@ -51,9 +51,7 @@ class dungeon:
                     if cur_room.height < 9: 
                         new_room = AnyNode(id=str(counter), room=copy.copy(cur_room), split=None, parent=cur_node)
                         counter+=1
-                        print ('skip')
                     else:
-                        print ('vertical')
                         row = random.randint(cur_room.y1+4, cur_room.y2-4)
                         new_room = AnyNode(id=str(counter), room=Room(cur_room.y1, row-1, cur_room.x1, cur_room.x2), split='vertical', parent=cur_node)
                         counter+=1
@@ -65,9 +63,7 @@ class dungeon:
                     if cur_room.width < 9:
                         new_room = AnyNode(id=str(counter), room=copy.copy(cur_room), split=None, parent=cur_node)
                         counter +=1
-                        print ('skip')
                     else:
-                        print ('horizontal')
                         col = random.randint(cur_room.x1+4, cur_room.x2-4)
                         new_room = AnyNode(id=str(counter), room=Room(cur_room.y1, cur_room.y2, cur_room.x1, col-1), split='horizontal', parent=cur_node)
                         counter += 1
