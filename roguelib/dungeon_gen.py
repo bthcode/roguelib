@@ -23,7 +23,7 @@ class Room:
     def __repr__(self):
         return f'{self.y1},{self.y2},{self.x1},{self.x2},{self.height},{self.width}'
 
-class dungeon:
+class DungeonGenerator:
     def __init__(self):
         self.width=120
         self.height=30
@@ -40,7 +40,7 @@ class dungeon:
         
         # Create a binary tree of divided spaces
         counter = 0
-        for i in range(4):
+        for i in range(5):
             for cur_node in graph.leaves:
                 cur_room = cur_node.room
                 split_dir = random.choices(['vertical', 'horizontal'],
@@ -73,11 +73,11 @@ class dungeon:
         # Put rooms in the spaces
         for leaf in graph.leaves:
             room  = leaf.room
-            w = random.randint(2, room.width)
-            h = random.randint(2, room.height)
-            x1 = random.randint(room.x1, room.x2-w)
+            w = random.randint(2, room.width-1)
+            h = random.randint(2, room.height-1)
+            x1 = random.randint(room.x1+1, room.x2-w)
             x2 = x1 + w
-            y1 = random.randint(room.y1, room.y2-h)
+            y1 = random.randint(room.y1+1, room.y2-h)
             y2 = y1 + h
             leaf.room = Room(y1,y2,x1,x2)
             room = leaf.room
@@ -103,11 +103,11 @@ class dungeon:
                     min_dist = dist
                     left = idx1
                     right = idx2
-        return left, right
+        return left, right, min_dist
 
     def calc_intersection(self, room1, room2):
-        ys1 = set(range(room1.y1+1, room1.y2))
-        ys2 = set(range(room2.y1+1, room2.y2))
+        ys1 = set(range(room1.y1, room1.y2))
+        ys2 = set(range(room2.y1, room2.y2))
         intersection_y = list(ys1.intersection(ys2))
 
         xs1 = set(range(room1.x1+1, room1.x2))
@@ -131,12 +131,22 @@ class dungeon:
             if len(node.children) == 2:
                 #if not node.children[0].is_leaf: continue
                 
-                n1 = node.children[0].leaves[0]
-                n2 = node.children[1].leaves[0]
+                #----------------------------------------------------
+                # Find the closest leaves from left set and right set
+                #----------------------------------------------------
+                min_dist = 999999
+                for idx, leaf1 in enumerate(node.children[0].leaves):
+                    for idx2, leaf2 in enumerate(node.children[1].leaves):
+                        pts1 = self.calc_control_points(leaf1.room)
+                        pts2 = self.calc_control_points(leaf2.room)
+                        left, right, dist = self.find_min_distance(pts1, pts2)
+                        if dist < min_dist:
+                            n1 = leaf1
+                            n2 = leaf2
+                            min_dist = dist
 
                 #------------------------------------------------------
-                # 1. get intersections in x and y
-                #  if possible, connect largest intersection
+                #  if the xs or ys intersect, connect directly
                 #------------------------------------------------------
                 intersection_y, intersection_x = self.calc_intersection(n1.room, n2.room)
                 if len(intersection_y):
@@ -167,13 +177,19 @@ class dungeon:
                     #-------------------------------------------------
                     pts1 = self.calc_control_points(n1.room)
                     pts2 = self.calc_control_points(n2.room)
-                    left, right = self.find_min_distance(pts1, pts2)
+                    left, right, _ = self.find_min_distance(pts1, pts2)
 
                     sides = [ 'U', 'D', 'L', 'R' ]
 
                     lside = sides[left]
                     rside = sides[right]
 
+                    #---------------------------------------
+                    # Map control point combinations to 
+                    #  directions
+                    #    V = go vertical
+                    #    S = go sideways
+                    #---------------------------------------
                     dirmap = { 
                                'DD' : [],
                                'DR' : 'VS',
@@ -197,14 +213,23 @@ class dungeon:
                     y1, x1 = pts1[left]
                     y2, x2 = pts2[right]
 
+                    #---------------------------------------------
+                    # if one room is top/bottom and one is a side,
+                    #  make a single turn
+                    #---------------------------------------------
                     if len(dir_sequence) == 2:
                         if dir_sequence[0] == 'S':
-                            corridor = self.calc_line_segment(x1, x2, y1, y2)
+                            corridor = self.calc_line_segment(x1, x2, y1, y1)
                             corridor.extend(self.calc_line_segment(x2, x2, y1, y2))
                         else:
                             corridor = self.calc_line_segment(x1, x1, y1, y2 )
                             corridor.extend(self.calc_line_segment(x1, x2, y2, y2))
 
+                    #---------------------------------------------
+                    # if both are sides or both are top/bottom,
+                    #  make two turns
+                    #---------------------------------------------
+                    #  make a single turn
                     elif len(dir_sequence) == 3:
                         if dir_sequence[0] == 'S':
                             pt1 = [ y1, x1 + (x2-x1)//2 ]
@@ -249,5 +274,5 @@ class dungeon:
         return str(self.grid)
 
 if __name__ == "__main__":
-    D = dungeon()
+    D = DungeonGenerator()
     print (D)
