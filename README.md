@@ -1,2 +1,2 @@
 # roguelib
-Python Roguelike Library
+Python library for roguelike development

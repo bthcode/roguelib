@@ -1,11 +1,15 @@
-import Grid
+# stdlib
 import random
 import math
 import copy
 from typing import List
 import logging
 
+# anytree
 from anytree import Node, RenderTree, LevelOrderIter, AnyNode
+
+# project
+import grid
 
 
 class Room:
@@ -67,7 +71,7 @@ class DungeonGenerator:
         '''
         self.width = 120
         self.height = 30
-        self.grid = Grid.Grid(self.height, self.width, "#")
+        self.grid = grid.Grid(self.height, self.width, "#")
         self.num_levels = int(math.log2(num_rooms))
 
         graph = self.make_rooms()
