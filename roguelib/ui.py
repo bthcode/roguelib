@@ -28,13 +28,10 @@ class GameUI():
         self.stdscr.keypad(1)
         curses.curs_set(0)
 
-        self.colors = [curses.color_pair(0)]
-        for i in range(1, 16):
-            curses.init_pair(i, i % 8, 0)
-            if i < 8:
-                self.colors.append(curses.color_pair(i))
-            else:
-                self.colors.append(curses.color_pair(i) | curses.A_BOLD)
+        curses.start_color()
+        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
         # Layout
         self.height, self.width = self.stdscr.getmaxyx()
@@ -71,10 +68,7 @@ class GameUI():
         self.clear()
 
     def clear(self):
-        self.dattr = self.colors[0]
         self.chars = [[" "] * self.width for i in range(self.height)]
-        self.attrs = [[self.colors[0]] *
-                      self.width for i in range(self.height)]
         self.cursor = [0, 0]
         self.pad.clear()
         self.pad.refresh(0, 0,
@@ -93,8 +87,10 @@ class GameUI():
             self.addstr(lines, 0, ' ' * self.width, win, c_white)
 
     def PutChar(self, y, x, ch, attr):
-        if True or self.chars[y][x] != ch or self.attrs[y][x] != attr:
-            self.pad.addstr(y, x, ch, curses.color_pair(attr))
+        if 1 and attr == 'BOLD':
+            self.pad.addstr(y, x, ch, curses.color_pair(2))
+        else:
+            self.pad.addstr(y, x, ch, curses.color_pair(1))
 
     def refresh(self):
         self.msg_win.touchwin()
@@ -141,46 +137,105 @@ class GameUI():
 #       - UI Has a game engine
 #---------------------------------------------------------------- 
 
+import dungeon_gen
+import fov
+import random
+class PlayerCharacter:
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+
+class GameEngine:
+    def __init__(self, width, height):
+        self.MAP = dungeon_gen.DungeonGenerator(width-1, height-1)
+        self.PC  = PlayerCharacter()
+        pc_loc = self.find_empty_square()
+        self.PC.y = pc_loc[0]
+        self.PC.x = pc_loc[1]
+        self.FOV = fov.FOVMap(self.MAP.grid.width,
+                              self.MAP.grid.height,
+                              self.BlocksVision)
+
+    def BlocksVision(self, x, y):
+        return self.MAP.grid[y,x] in ['+', '#']
+
+    def find_empty_square(self):
+        while True:
+            x = random.randint(1, self.MAP.grid.width-1)
+            y = random.randint(1, self.MAP.grid.height-1)
+            if self.MAP.grid[y,x] in ['.', ' ']:
+                return y,x
+
+    def get_tile(self, y, x):
+        return self.MAP.grid[y,x]
+
+    def move_pc(self, direction):
+        new_x =  min(max(0,self.PC.x + direction[0]), self.MAP.grid.width-1)
+        new_y = min(max(0,self.PC.y + direction[1]), self.MAP.grid.height-1)
+
+        old_y = self.PC.y 
+        old_x = self.PC.x
+
+        moved = False
+        if self.MAP.grid[new_y, new_x] not in [' ', '.', '+']:
+            pass
+        else:
+            self.PC.y = new_y
+            self.PC.x = new_x
+            moved = True
+        return self.PC.y, self.PC.x, old_y, old_x, moved
+
+    def calc_fov(self, y, x):
+        new_fov = set()
+        for i, j in self.FOV.Ball(x, y, 3):
+            distance_squared = (i - x) ** 2 + (j - y) ** 2
+            if distance_squared <= 3**2:
+                new_fov.add((i, j))
+        return new_fov
+
 def main(stdscr):
-    import dungeon_gen
     import random
     UI = GameUI(stdscr)
-    MAP = dungeon_gen.DungeonGenerator(UI.pad_width-1, UI.pad_height-1)
+    Engine = GameEngine(UI.pad_width, UI.pad_height)
     
-    for y in range(MAP.grid.height):
-        for x in range(MAP.grid.width):
-            UI.PutChar(y,x,MAP.grid[y,x], curses.color_pair(1))
+    for y in range(Engine.MAP.height):
+        for x in range(Engine.MAP.width):
+            UI.PutChar(y,x,Engine.MAP.grid[y,x], curses.color_pair(1))
 
-    #-------------------------------------
-    # Find an open sqare to start on
-    #-------------------------------------
-    this_y = 0
-    this_x = 0
-    while True:
-        this_y = random.randint(1, MAP.grid.height-1)
-        this_x = random.randint(1, MAP.grid.width-1)
-        if MAP.grid[this_y, this_x] == ' ':
-            break
+    UI.center_on(Engine.PC.y, Engine.PC.x)
 
-    UI.center_on(this_y, this_x)
+    fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
+    for pt in fov:
+        UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
+
 
     while True:
         keypress = UI.get_input()
         if keypress in arrow_offsets:
-            # calc no position
-            new_x =  min(max(0,this_x + arrow_offsets[keypress][0]), UI.pad_width-1)
-            new_y = min(max(0,this_y + arrow_offsets[keypress][1]), UI.pad_height-1)
 
-            if MAP.grid[new_y, new_x] not in [' ', '.', '+']:
-                continue
+            new_y, new_x, old_y, old_x, moved = Engine.move_pc(arrow_offsets[keypress])
 
-            # clear old position
-            UI.PutChar(this_y, this_x, MAP.grid[this_y, this_x], curses.color_pair(1))
+            if moved:
+                # clear old position
+                #UI.PutChar(old_y, old_x, Engine.MAP.grid[old_y, old_x], 'X')
 
-            this_x, this_y = new_x, new_y
+                UI.PutChar(new_y, new_x, '@', 'BOLD')
+                UI.center_on(new_y, new_x)
 
-            UI.PutChar(this_y, this_x, '@', curses.color_pair(1))
-            UI.center_on(this_y, this_x)
+                #---------------------------------------------------
+                # FOV Example
+                #---------------------------------------------------
+                new_fov = Engine.calc_fov(new_y, new_x)
+
+
+                for pt in fov:# ^ new_fov:
+                    UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], '')
+
+                for pt in new_fov:
+                    UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
+
+
+                fov = new_fov
 
         elif keypress in [ord('q'),ord('Q')]:
             return

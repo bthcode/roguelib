@@ -69,8 +69,8 @@ class DungeonGenerator:
         num_rooms : int
             target num rooms - iterate log2(num_room) times
         '''
-        self.width = 120
-        self.height = 30
+        self.width =  width
+        self.height = height
         self.grid = grid.Grid(self.height, self.width, "#")
         self.num_levels = int(math.log2(num_rooms))
 
@@ -162,7 +162,7 @@ class DungeonGenerator:
             y2 = y1 + h
             leaf.room = Room(y1, y2, x1, x2)
             room = leaf.room
-            self.grid[room.y1 : room.y2, room.x1 : room.x2] = " "  # leaf.id[0]
+            self.grid[room.y1 : room.y2, room.x1 : room.x2] = "."  # leaf.id[0]
         return graph
 
     def calc_control_points(self, room):
