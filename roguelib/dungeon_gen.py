@@ -54,11 +54,21 @@ class DungeonGenerator:
     https://www.roguebasin.com/index.php/Basic_BSP_Dungeon_generation
     """
 
-    def __init__(self):
+    def __init__(self, width:int=120, height:int=30, num_rooms:int=16):
+        '''
+        Parameters
+        ----------
+        width : int
+            map width
+        height : int
+            map height
+        num_rooms : int
+            target num rooms - iterate log2(num_room) times
+        '''
         self.width = 120
         self.height = 30
         self.grid = Grid.Grid(self.height, self.width, "#")
-        self.num_levels = 5
+        self.num_levels = int(math.log2(num_rooms))
 
         graph = self.make_rooms()
         self.connect_rooms(graph)
@@ -387,5 +397,15 @@ class DungeonGenerator:
 
 
 if __name__ == "__main__":
-    D = DungeonGenerator()
+    import argparse
+    parser = argparse.ArgumentParser('')
+    parser.add_argument('--width', default=80, type=int)
+    parser.add_argument('--height', default=40, type=int)
+    parser.add_argument('--num_rooms', default=16, type=int)
+
+    args = parser.parse_args()
+
+    D = DungeonGenerator(width=args.width, 
+                         height=args.height, 
+                         num_rooms=args.num_rooms)
     print(D)
