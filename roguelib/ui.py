@@ -225,7 +225,7 @@ def main(stdscr):
                 #---------------------------------------------------
                 new_fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
 
-                for pt in fov:# ^ new_fov:
+                for pt in fov ^ new_fov:
                     UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], '')
 
                 for pt in new_fov:
