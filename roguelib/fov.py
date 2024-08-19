@@ -31,7 +31,7 @@ class FOVMap(object):
 
     def Ball(self, x, y, radius, ignore_walls=False):
         radius_squared = (radius + 0.5) ** 2
-        if ignore_walls:
+        if 0 or ignore_walls:
             f = {}
             sx, ex = max(0, x-radius), min(self.width-1, x+radius)
             sy, ey = max(0, y-radius), min(self.height-1, y+radius)

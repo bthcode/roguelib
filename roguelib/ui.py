@@ -187,10 +187,11 @@ class GameEngine:
 
     def calc_fov(self, y, x):
         new_fov = set()
-        for i, j in self.FOV.Ball(x, y, 3):
+        for i, j in self.FOV.Ball(x, y, 2):
             distance_squared = (i - x) ** 2 + (j - y) ** 2
             if distance_squared <= 3**2:
                 new_fov.add((i, j))
+            new_fov.add((i,j))
         return new_fov
 
 def main(stdscr):
@@ -202,12 +203,11 @@ def main(stdscr):
         for x in range(Engine.MAP.width):
             UI.PutChar(y,x,Engine.MAP.grid[y,x], curses.color_pair(1))
 
-    UI.center_on(Engine.PC.y, Engine.PC.x)
 
     fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
     for pt in fov:
         UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
-
+    UI.center_on(Engine.PC.y, Engine.PC.x)
 
     while True:
         keypress = UI.get_input()
@@ -217,16 +217,13 @@ def main(stdscr):
 
             if moved:
                 # clear old position
-                #UI.PutChar(old_y, old_x, Engine.MAP.grid[old_y, old_x], 'X')
+                UI.PutChar(old_y, old_x, Engine.MAP.grid[old_y, old_x], 'X')
 
-                UI.PutChar(new_y, new_x, '@', 'BOLD')
-                UI.center_on(new_y, new_x)
 
                 #---------------------------------------------------
                 # FOV Example
                 #---------------------------------------------------
-                new_fov = Engine.calc_fov(new_y, new_x)
-
+                new_fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
 
                 for pt in fov:# ^ new_fov:
                     UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], '')
@@ -234,8 +231,12 @@ def main(stdscr):
                 for pt in new_fov:
                     UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
 
+                UI.PutChar(new_y, new_x, '@', 'BOLD')
 
                 fov = new_fov
+
+                # Does the update
+                UI.center_on(new_y, new_x)
 
         elif keypress in [ord('q'),ord('Q')]:
             return
