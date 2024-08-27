@@ -185,7 +185,7 @@ class GameEngine:
         return self.MAP.grid[y,x] in ['+', '#']
 
     def PathfindPass(self, x, y):
-        return self.MAP.grid[y,x] in ['.', ' ']
+        return self.MAP.grid[y,x] in ['.', ' ', '+']
 
     def find_empty_square(self):
         while True:
