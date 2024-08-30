@@ -5,11 +5,14 @@ import copy
 from typing import List
 import logging
 
+from typing import Protocol, Iterator, Tuple, TypeVar, Optional, Iterable, List
+
 # anytree
 from anytree import Node, RenderTree, LevelOrderIter, AnyNode
 
 # project
 import grid
+from grid import GridLocation
 
 
 class Room:
@@ -176,7 +179,7 @@ class DungeonGenerator:
         return pts
 
     def find_min_distance(
-        self, pts1: list[int, int], pts2: list[int, int]
+        self, pts1: Iterable[GridLocation], pts2: Iterable[GridLocation]
     ) -> [int, int, float]:
         """Find minimum distance between two sets of points
 
@@ -377,7 +380,7 @@ class DungeonGenerator:
 
                 ctr += 1
 
-    def calc_line_segment(self, x1: int, x2: int, y1: int, y2: int) -> list[int, int]:
+    def calc_line_segment(self, x1: int, x2: int, y1: int, y2: int) -> List[GridLocation]:
         """Calculate a straight line segment from y1,x1 to y2,x2"""
         pts = [[y1, x1]]
         # Move in Y
