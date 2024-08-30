@@ -185,7 +185,7 @@ class GameEngine:
         return self.MAP.grid[y,x] in ['+', '#']
 
     def PathfindPass(self, x, y):
-        return self.MAP.grid[y,x] in ['.', ' ']
+        return self.MAP.grid[y,x] in ['.', ' ', '+']
 
     def find_empty_square(self):
         while True:
@@ -249,6 +249,8 @@ def main(stdscr):
     fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
     for pt in fov:
         UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
+
+    UI.PutChar(Engine.PC.y, Engine.PC.x, '@', 'BOLD')
     UI.center_on(Engine.PC.y, Engine.PC.x)
 
     for idx, monster in enumerate(Engine.monsters):
