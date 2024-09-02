@@ -141,6 +141,7 @@ import dungeon_gen
 import fov
 import random
 import astar
+import grid
 class PlayerCharacter:
     def __init__(self):
         self.x = 0
@@ -151,10 +152,17 @@ class Monster:
         self.x = 0
         self.y = 0
         self.symbol = 'A'
+        self.cost_dict = { '.' : 1.0, '#' : 99, '+' : 0 }
+        self.impassable_list = ['#', '+']
 
-    def get_path(self, y, x, PathfindPass):
-        path = astar.path(self.x, self.y, x, y,
-                          PathfindPass, max_length = 10)
+    def get_path(self, G: grid.Grid, goal: grid.Location):
+        came_from, path_so_far = astar.a_star_search(self.cost_dict,
+                                   self.impassable_list,
+                                   G,
+                                   (self.y, self.x),
+                                   goal, max_length=999)
+        path = astar.reconstruct_path(came_from, start=(self.y, self.x), goal=goal)
+
         return path
 
 
@@ -172,8 +180,8 @@ class GameEngine:
         # TEST
         sample_monster = Monster()
         while True:
-            x = random.randint(max(0,self.PC.x - 10), min(self.PC.x + 10, self.MAP.grid.width-2))
-            y = random.randint(max(0,self.PC.y - 10), min(self.PC.y + 10, self.MAP.grid.height-2))
+            x = random.randint(max(0,self.PC.x - 30), min(self.PC.x + 30, self.MAP.grid.width-2))
+            y = random.randint(max(0,self.PC.y - 30), min(self.PC.y + 30, self.MAP.grid.height-2))
             if self.MAP.grid[y,x] in ['.', ' ']:
                 break
         sample_monster.x = x
@@ -199,14 +207,20 @@ class GameEngine:
 
     def move_monster(self, monster_idx):
         monster = self.monsters[monster_idx]
-        path = monster.get_path(self.PC.y, self.PC.x, self.PathfindPass)
+        path = monster.get_path( self.MAP.grid, (self.PC.y, self.PC.x)) #self.PC.y, self.PC.x, self.PathfindPass)
         old_pos = [ monster.y, monster.x ]
         if path:
-            dx, dy = path[0][0] - monster.x, path[0][1] - monster.y
+            dx, dy = path[0][1] - monster.x, path[0][0] - monster.y
             new_pos = [ monster.y + dy, monster.x + dx ]
-            monster.y = new_pos[0]
-            monster.x = new_pos[1]
-            return old_pos, new_pos 
+            tile = self.MAP.grid[new_pos]
+            if tile in monster.impassable_list: 
+                return old_pos, old_pos
+            elif new_pos[0] == self.PC.y and new_pos[1] == self.PC.x:
+                return old_pos, old_pos
+            else: 
+                monster.y = new_pos[0]
+                monster.x = new_pos[1]
+                return old_pos, new_pos 
         else:
             return old_pos, old_pos
 

@@ -78,18 +78,22 @@ class Grid:
         (y, x) = loc
         return 0 <= x < self.width and 0 <= y < self.height
     
-    def passable(self, loc: GridLocation) -> bool:
+    def passable(self, loc: GridLocation, passable_list) -> bool:
         ''' Is this loc passable? '''
-        return self.get_tile(loc) not in ['+', '#']
+        return self.get_tile(loc) in passable_list
+
+    def cost(self, loc: GridLocation) -> [bool, float]:
+        return 1.0
     
     def neighbors(self, loc: GridLocation) -> Iterator[GridLocation]:
         ''' What are the in-bounds neighbords of this loc? '''
         (y, x) = loc
-        neighbors = [(x+1, y), (x-1, y), (x, y-1), (x, y+1)] # E W N S
+        neighbors = [(y, x+1), (y-1, x+1), (y-1, x), (y-1, x-1),
+                     (y, x-1), (y+1, x-1), (y+1, x), (y+1, x+1) ]
         # see "Ugly paths" section for an explanation:
         if (x + y) % 2 == 0: neighbors.reverse() # S N W E
         results = filter(self.in_bounds, neighbors)
-        results = filter(self.passable, results)
+        #results = filter(self.passable, results, passable_list)
         return results
 
 
