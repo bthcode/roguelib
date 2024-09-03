@@ -1,4 +1,5 @@
 import curses
+import grid
 
 arrow_offsets = {
     curses.KEY_DOWN: (0, 1),
@@ -26,6 +27,7 @@ class GameUI():
         curses.cbreak()
         curses.noecho()
         self.stdscr.keypad(1)
+        #self.stdscr.nodelay(1)
         curses.curs_set(0)
 
         curses.start_color()
@@ -86,9 +88,10 @@ class GameUI():
         except TypeError:
             self.addstr(lines, 0, ' ' * self.width, win, c_white)
 
-    def PutChar(self, y, x, ch, attr):
+    def PutChar(self, loc:grid.GridLocation, ch, attr):
+        y, x = loc
         if 1 and attr == 'BOLD':
-            self.pad.addstr(y, x, ch, curses.color_pair(2))
+            self.pad.addstr(y, x, ch, curses.color_pair(3))
         else:
             self.pad.addstr(y, x, ch, curses.color_pair(1))
 
@@ -104,7 +107,8 @@ class GameUI():
     def get_input(self):
         return self.screen.getch()
 
-    def center_on(self, y, x):
+    def center_on(self, loc:grid.GridLocation):
+        y, x = loc
         # does the screen need to move?
         screen_min_x = self.pad_ul_x
         screen_max_x = self.pad_ul_x + self.game_width-1
@@ -142,26 +146,26 @@ import fov
 import random
 import astar
 import grid
+
 class PlayerCharacter:
     def __init__(self):
-        self.x = 0
-        self.y = 0
+        self.loc:grid.Location = (0,0)
 
 class Monster:
     def __init__(self):
-        self.x = 0
-        self.y = 0
+        self.loc:grid.Location = (0,0)
         self.symbol = 'A'
         self.cost_dict = { '.' : 1.0, '#' : 99, '+' : 0 }
         self.impassable_list = ['#', '+']
 
     def get_path(self, G: grid.Grid, goal: grid.Location):
-        came_from, path_so_far = astar.a_star_search(self.cost_dict,
-                                   self.impassable_list,
-                                   G,
-                                   (self.y, self.x),
-                                   goal, max_length=999)
-        path = astar.reconstruct_path(came_from, start=(self.y, self.x), goal=goal)
+        
+        came_from, path_so_far = astar.a_star_search( self.cost_dict,
+                                                      self.impassable_list,
+                                                      G,
+                                                      self.loc,
+                                                      goal, max_length=999)
+        path = astar.reconstruct_path(came_from, start=self.loc, goal=goal)
 
         return path
 
@@ -171,8 +175,7 @@ class GameEngine:
         self.MAP = dungeon_gen.DungeonGenerator(width-1, height-1)
         self.PC  = PlayerCharacter()
         pc_loc = self.find_empty_square()
-        self.PC.y = pc_loc[0]
-        self.PC.x = pc_loc[1]
+        self.PC.loc = pc_loc
         self.FOV = fov.FOVMap(self.MAP.grid.width,
                               self.MAP.grid.height,
                               self.BlocksVision)
@@ -180,12 +183,11 @@ class GameEngine:
         # TEST
         sample_monster = Monster()
         while True:
-            x = random.randint(max(0,self.PC.x - 30), min(self.PC.x + 30, self.MAP.grid.width-2))
-            y = random.randint(max(0,self.PC.y - 30), min(self.PC.y + 30, self.MAP.grid.height-2))
+            x = random.randint(max(0,self.PC.loc[1] - 30), min(self.PC.loc[1] + 30, self.MAP.grid.width-2))
+            y = random.randint(max(0,self.PC.loc[0] - 30), min(self.PC.loc[0] + 30, self.MAP.grid.height-2))
             if self.MAP.grid[y,x] in ['.', ' ']:
                 break
-        sample_monster.x = x
-        sample_monster.y = y 
+        sample_monster.loc = (y,x)
         
         self.monsters = [sample_monster]
 
@@ -207,41 +209,39 @@ class GameEngine:
 
     def move_monster(self, monster_idx):
         monster = self.monsters[monster_idx]
-        path = monster.get_path( self.MAP.grid, (self.PC.y, self.PC.x)) #self.PC.y, self.PC.x, self.PathfindPass)
-        old_pos = [ monster.y, monster.x ]
+        path = monster.get_path( self.MAP.grid, self.PC.loc) #self.PC.y, self.PC.x, self.PathfindPass)
+        old_pos = monster.loc
         if path:
-            dx, dy = path[0][1] - monster.x, path[0][0] - monster.y
-            new_pos = [ monster.y + dy, monster.x + dx ]
+            dx, dy = path[0][1] - monster.loc[1], path[0][0] - monster.loc[0]
+            new_pos = ( monster.loc[0] + dy, monster.loc[1] + dx )
             tile = self.MAP.grid[new_pos]
             if tile in monster.impassable_list: 
                 return old_pos, old_pos
-            elif new_pos[0] == self.PC.y and new_pos[1] == self.PC.x:
+            elif new_pos[0] == self.PC.loc[0] and new_pos[1] == self.PC.loc[1]:
                 return old_pos, old_pos
             else: 
-                monster.y = new_pos[0]
-                monster.x = new_pos[1]
+                monster.loc = new_pos
                 return old_pos, new_pos 
         else:
             return old_pos, old_pos
 
     def move_pc(self, direction):
-        new_x =  min(max(0,self.PC.x + direction[0]), self.MAP.grid.width-1)
-        new_y = min(max(0,self.PC.y + direction[1]), self.MAP.grid.height-1)
+        new_x =  min(max(0,self.PC.loc[1] + direction[0]), self.MAP.grid.width-1)
+        new_y = min(max(0,self.PC.loc[0] + direction[1]), self.MAP.grid.height-1)
 
-        old_y = self.PC.y 
-        old_x = self.PC.x
+        old_y, old_x = self.PC.loc
 
         moved = False
-        if self.MAP.grid[new_y, new_x] not in [' ', '.', '+']:
+        if self.MAP.grid[(new_y, new_x)] not in [' ', '.', '+']:
             pass
         else:
-            self.PC.y = new_y
-            self.PC.x = new_x
+            self.PC.loc = (new_y, new_x)
             moved = True
-        return self.PC.y, self.PC.x, old_y, old_x, moved
+        return self.PC.loc[0], self.PC.loc[1], old_y, old_x, moved
 
-    def calc_fov(self, y, x):
+    def calc_fov(self, loc):
         new_fov = set()
+        y, x = loc
         for i, j in self.FOV.Ball(x, y, 2):
             distance_squared = (i - x) ** 2 + (j - y) ** 2
             if distance_squared <= 3**2:
@@ -249,7 +249,7 @@ class GameEngine:
             new_fov.add((i,j))
         return new_fov
 
-
+#@profile
 def main(stdscr):
     import random
     UI = GameUI(stdscr)
@@ -257,18 +257,18 @@ def main(stdscr):
     
     for y in range(Engine.MAP.height):
         for x in range(Engine.MAP.width):
-            UI.PutChar(y,x,Engine.MAP.grid[y,x], curses.color_pair(1))
+            UI.PutChar((y,x),Engine.MAP.grid[y,x], curses.color_pair(1))
 
 
-    fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
+    fov = Engine.calc_fov(Engine.PC.loc)
     for pt in fov:
-        UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
+        UI.PutChar((pt[1], pt[0]), Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
 
-    UI.PutChar(Engine.PC.y, Engine.PC.x, '@', 'BOLD')
-    UI.center_on(Engine.PC.y, Engine.PC.x)
+    UI.PutChar(Engine.PC.loc, '@', 'BOLD')
+    UI.center_on(Engine.PC.loc)
 
     for idx, monster in enumerate(Engine.monsters):
-        UI.PutChar(monster.y, monster.x, monster.symbol, 'BOLD')
+        UI.PutChar(monster.loc, monster.symbol, 'BOLD')
 
     while True:
         keypress = UI.get_input()
@@ -278,21 +278,21 @@ def main(stdscr):
 
             if moved:
                 # clear old position
-                UI.PutChar(old_y, old_x, Engine.MAP.grid[old_y, old_x], 'X')
+                UI.PutChar((old_y, old_x), Engine.MAP.grid[old_y, old_x], 'X')
 
 
                 #---------------------------------------------------
                 # FOV Example
                 #---------------------------------------------------
-                new_fov = Engine.calc_fov(Engine.PC.y, Engine.PC.x)
+                new_fov = Engine.calc_fov(Engine.PC.loc)
 
                 for pt in fov ^ new_fov:
-                    UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], '')
+                    UI.PutChar((pt[1], pt[0]), Engine.MAP.grid[pt[1], pt[0]], '')
 
                 for pt in new_fov:
-                    UI.PutChar(pt[1], pt[0], Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
+                    UI.PutChar((pt[1], pt[0]), Engine.MAP.grid[pt[1], pt[0]], 'BOLD')
 
-                UI.PutChar(new_y, new_x, '@', 'BOLD')
+                UI.PutChar((new_y, new_x), '@', 'BOLD')
 
                 fov = new_fov
 
@@ -301,12 +301,12 @@ def main(stdscr):
                 #-------------------------------------------------
                 for idx, monster in enumerate(Engine.monsters):
                     old_pos, new_pos = Engine.move_monster(0) 
-                    UI.PutChar(old_pos[0], old_pos[1], Engine.MAP.grid[old_pos[0], old_pos[1]], 'BOLD')
-                    UI.PutChar(monster.y, monster.x, monster.symbol, 'BOLD')
+                    UI.PutChar(old_pos, Engine.MAP.grid[old_pos[0], old_pos[1]], 'BOLD')
+                    UI.PutChar(monster.loc, monster.symbol, 'BOLD')
                         
 
                 # Does the update
-                UI.center_on(new_y, new_x)
+                UI.center_on((new_y, new_x))
 
         elif keypress in [ord('q'),ord('Q')]:
             return
